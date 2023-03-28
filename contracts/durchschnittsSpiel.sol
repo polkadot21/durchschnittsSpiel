@@ -7,6 +7,9 @@ contract GuessTheNumberGame {
     uint256 public closestGuess;
     address public winner;
     mapping(address => uint256) public playerGuesses;
+    uint256 public saltSubmissionPeriod = 1 hours; // define salt submission period as 1 hour
+    mapping(address => bytes32) public playerSalts; // map player addresses to salt values
+
 
     constructor() {
         owner = msg.sender;
@@ -27,20 +30,26 @@ contract GuessTheNumberGame {
     function calculateWinner() public {
         require(msg.sender == owner, "Only owner can calculate the winner");
         require(numPlayers > 0, "There must be at least one player to calculate the winner");
+        require(winningNumber == 0, "The winning number has already been calculated");
+        require(block.timestamp >= saltSubmissionDeadline, "Salt submission period has not expired yet");
 
         uint256 total = 0;
         for (uint256 i = 0; i < numPlayers; i++) {
-            total += playerGuesses[address(i)];
+            address playerAddress = address(i);
+            bytes32 hashedGuess = playerGuesses[playerAddress] ^ playerSalts[playerAddress];
+            total += uint256(hashedGuess);
         }
         uint256 average = total / numPlayers;
         uint256 closest = 1000;
         address winnerAddress;
         for (uint256 j = 0; j < numPlayers; j++) {
-            uint256 distance = average > playerGuesses[address(j)] ? average - playerGuesses[address(j)] : playerGuesses[address(j)] - average;
+            address playerAddress = address(j);
+            bytes32 hashedGuess = playerGuesses[playerAddress] ^ playerSalts[playerAddress];
+            uint256 distance = average > uint256(hashedGuess) ? average - uint256(hashedGuess) : uint256(hashedGuess) - average;
             if (distance < closest) {
                 closest = distance;
-                winnerAddress = address(j);
-                closestGuess = playerGuesses[address(j)];
+                winnerAddress = playerAddress;
+                closestGuess = uint256(hashedGuess);
             } else if (distance == closest) {
                 winnerAddress = address(0);
             }
@@ -51,6 +60,21 @@ contract GuessTheNumberGame {
             winner = winnerAddress;
         }
         winningNumber = average * 2 / 3;
+    }
+
+    function collectSalts() public {
+        require(msg.sender == owner, "Only owner can collect the salts");
+        require(numPlayers > 0, "There must be at least one player to collect the salts");
+        require(winningNumber == 0, "The winning number has already been calculated");
+
+        for (uint256 i = 0; i < numPlayers; i++) {
+            address playerAddress = address(i);
+            require(playerSalts[playerAddress] == bytes32(0), "Salt has already been collected for this player");
+            playerSalts[playerAddress] = salts[playerAddress];
+        }
+
+        // start timer for players to submit their salt values
+        saltSubmissionDeadline = block.timestamp + saltSubmissionPeriod;
     }
 
     function selectWinner() public {
