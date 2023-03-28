@@ -16,10 +16,11 @@ contract GuessTheNumberGame {
         winner = address(0);
     }
 
-    function enterNumber(uint256 _guess) public {
+    function enterNumber(uint256 _guess, bytes32 _salt) public {
         require(_guess >= 0 && _guess <= 1000, "Guess must be between 0 and 1000");
-        require(playerGuesses[msg.sender] == 0, "You have already entered a guess");
-        playerGuesses[msg.sender] = _guess;
+        require(playerGuesses[msg.sender] == bytes32(0), "You have already entered a guess");
+        bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, _salt));
+        playerGuesses[msg.sender] = hashedGuess;
         numPlayers += 1;
     }
 
