@@ -19,19 +19,53 @@ contract GuessTheNumberGame {
         winner = address(0);
     }
 
-    function enterNumber(uint256 _guess, bytes32 _salt) public {
-        require(_guess >= 0 && _guess <= 1000, "Guess must be between 0 and 1000");
+    // Modifier that checks if the player has already submitted a guess
+    modifier requireGuessNotSubmitted() {
         require(playerGuesses[msg.sender] == bytes32(0), "You have already entered a guess");
+        _;
+    }
+
+    // Modifier that checks if the guess is within the allowed range
+    modifier requireGuessInRange(uint256 guess) {
+        require(guess >= 0 && guess <= 1000, "Guess must be between 0 and 1000");
+        _;
+    }
+
+
+    // Modifier that checks if the sender is the owner
+    modifier requireOwner(address owner) {
+        require(msg.sender == owner, "Only owner can calculate the winner");
+        _;
+    }
+
+
+    // Modifier that checks if there are at least one player
+    modifier requireAtLeastOnePlayer(uint256 numPlayers) {
+        require(numPlayers > 0, "There must be at least one player to calculate the winner");
+        _;
+    }
+
+    // Modifier that checks if the winning number has not already been calculated
+    modifier requireNotAlreadyCalculated(uint256 winningNumber) {
+        require(winningNumber == 0, "The winning number has already been calculated");
+        _;
+    }
+
+
+    // Modifier that checks if the salt submission period has expired
+    modifier requireSaltSubmissionPeriodExpired(uint256 saltSubmissionDeadline) {
+        require(block.timestamp >= saltSubmissionDeadline, "Salt submission period has not expired yet");
+        _;
+    }
+
+
+    function enterNumber(uint256 _guess, bytes32 _salt) public requireGuessNotSubmitted requireGuessInRange {
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, _salt));
         playerGuesses[msg.sender] = hashedGuess;
         numPlayers += 1;
     }
 
-    function calculateWinner() public {
-        require(msg.sender == owner, "Only owner can calculate the winner");
-        require(numPlayers > 0, "There must be at least one player to calculate the winner");
-        require(winningNumber == 0, "The winning number has already been calculated");
-        require(block.timestamp >= saltSubmissionDeadline, "Salt submission period has not expired yet");
+    function calculateWinner() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireSaltSubmissionPeriodExpired {
 
         uint256 total = 0;
         for (uint256 i = 0; i < numPlayers; i++) {
