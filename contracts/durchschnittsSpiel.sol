@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 contract GuessTheNumberGame {
     address public owner;
     uint256 public numPlayers;
-    uint[] playerAddresses;
-    uint[] activeAddresses;
+    address[] playerAddresses;
+    address [] activeAddresses;
     uint[] activeGuesses;
-    uint[] droppedOutPlayerAddresses;
+    address[] droppedOutPlayerAddresses;
     uint256 public winningGuess;
     address public winner;
     mapping(address => uint256) public playerGuesses;
