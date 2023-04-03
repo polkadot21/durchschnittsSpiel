@@ -104,6 +104,7 @@ contract GuessTheNumberGame {
         _;
     }
 
+    event VariableReset();
     event GameStarted(uint256 timestamp);
     event GuessSubmitted(address player);
     event AllSaltsSubmitted();
@@ -112,9 +113,37 @@ contract GuessTheNumberGame {
     event WinningGuessCalculated(uint256 winningGuess);
 
 
+    function resetVariables() public requireOwner {
+        numPlayers = 0;
+        winningGuess = 1001;
+        winner = address(0);
+
+        for (uint i=0; i < playerAddresses.length; i++) {
+            address player = playerAddresses[i];
+            delete playerGuesses[player];
+            delete playerSalts[player];
+            delete playerRevealedGuesses[player];
+        }
+
+        for (uint j = 0; j < activeAddresses.length; j++) {
+            address activePlayer = activeAddresses[j];
+            delete guessesOfActivePlayers[activePlayer];
+        }
+
+        // Clear all arrays
+        delete playerAddresses;
+        delete activeAddresses;
+        delete activeGuesses;
+        delete droppedOutPlayerAddresses;
+
+    }
+
+
     function startGame() public requireOwner {
+        resetVariables();
+        assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001 && winner == address(0));
+        emit VariableReset();
         startTimestamp = block.timestamp;
-        // TODO: empty out all mappings!
         emit GameStarted(startTimestamp);
     }
 
