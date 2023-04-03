@@ -5,6 +5,7 @@ contract GuessTheNumberGame {
     uint256 public numPlayers;
     address[] playerAddresses;
     address [] activeAddresses;
+    address[] winningAddresses;
     uint[] activeGuesses;
     address[] droppedOutPlayerAddresses;
     uint256 public winningGuess;
@@ -130,6 +131,7 @@ contract GuessTheNumberGame {
         delete activeAddresses;
         delete activeGuesses;
         delete droppedOutPlayerAddresses;
+        delete winningAddresses;
 
     }
 
@@ -259,22 +261,20 @@ contract GuessTheNumberGame {
 
     function selectWinner() requireOwner requirePotentialWinnerExists public {
 
-        uint[] winningAddresses;
-
         for (uint256 i = 0; i < activeAddresses.length; i++) {
             address activeAddress = activeAddresses[i];
             if (guessesOfActivePlayers[activeAddress] == winningGuess)
                 winningAddresses.push(activeAddress);
-            }
+        }
         if (winningAddresses.length == 1) {
             payable(winningAddresses[0]).transfer(address(this).balance);
         } else {
             uint256 winnerIndex = uint256(blockhash(block.number - 1)) % winningAddresses.length;
             uint256 count = 0;
             for (uint256 j = 0; j < winningAddresses.length; j++) {
-                if (guessesOfActivePlayers[winningAddresses[i]] == winningGuess) {
+                if (guessesOfActivePlayers[winningAddresses[j]] == winningGuess) {
                     if (count == winnerIndex) {
-                        payable(winningAddresses[i]).transfer(address(this).balance / activeAddresses.length);
+                        payable(winningAddresses[j]).transfer(address(this).balance / activeAddresses.length);
                         break;
                     }
                     count++;
