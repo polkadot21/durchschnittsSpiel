@@ -58,6 +58,19 @@ contract GuessTheNumberGame {
         _;
     }
 
+    // Modifier that checks if there at least one player
+    modifier requirePotentialWinnerExists(uint256 saltSubmissionDeadline) {
+        require(winner != address(0), "There must be a winner to select");
+        _;
+    }
+
+    // Modifier that checks if there at least one player
+    modifier requireWinningNumberIsNotCalculated(uint256 saltSubmissionDeadline) {
+        require(closestGuess == winningNumber, "The winning number has not been calculated yet");
+        _;
+    }
+
+
 
     function enterNumber(uint256 _guess, bytes32 _salt) public requireGuessNotSubmitted requireGuessInRange {
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, _salt));
@@ -96,10 +109,7 @@ contract GuessTheNumberGame {
         winningNumber = average * 2 / 3;
     }
 
-    function collectSalts() public {
-        require(msg.sender == owner, "Only owner can collect the salts");
-        require(numPlayers > 0, "There must be at least one player to collect the salts");
-        require(winningNumber == 0, "The winning number has already been calculated");
+    function collectSalts() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated {
 
         for (uint256 i = 0; i < numPlayers; i++) {
             address playerAddress = address(i);
@@ -111,10 +121,7 @@ contract GuessTheNumberGame {
         saltSubmissionDeadline = block.timestamp + saltSubmissionPeriod;
     }
 
-    function selectWinner() public {
-        require(msg.sender == owner, "Only owner can select the winner");
-        require(winner != address(0), "There must be a winner to select");
-        require(closestGuess == winningNumber, "The winning number has not been calculated yet");
+    function selectWinner() requireOwner requirePotentialWinnerExists requireWinningNumberIsNotCalculated public {
 
         uint256 numWinners = 0;
         for (uint256 i = 0; i < numPlayers; i++) {
