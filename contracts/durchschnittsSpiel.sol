@@ -3,20 +3,27 @@ pragma solidity ^0.8.0;
 contract GuessTheNumberGame {
     address public owner;
     uint256 public numPlayers;
-    uint256 public winningNumber;
-    uint256 public closestGuess;
+    uint[] playerAddresses;
+    uint[] activeAddresses;
+    uint[] activeGuesses;
+    uint[] droppedOutPlayerAddresses;
+    uint256 public winningGuess;
     address public winner;
     mapping(address => uint256) public playerGuesses;
-    uint256 public saltSubmissionPeriod = 1 hours; // define salt submission period as 1 hour
+    uint256 public submissionPeriod = 1 days;
+    uint256 public revealPeriod = 1 hours; // define salt submission period as 1 hour
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
+    mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
+    mapping(address => uint256) public guessesOfActivePlayers;
+
+    uint256 startTimestamp;
 
 
     constructor() {
         owner = msg.sender;
         numPlayers = 0;
-        winningNumber = 0;
-        closestGuess = 1000;
         winner = address(0);
+        winningGuess = 1001; // > 1000 which is the maximum accepted guess
     }
 
     // Modifier that checks if the player has already submitted a guess
@@ -25,9 +32,26 @@ contract GuessTheNumberGame {
         _;
     }
 
+    modifier requireGuessSubmitted() {
+        require(playerGuesses[msg.sender] != bytes32(0), "You haven't entered a guess yet");
+        _;
+    }
+
     // Modifier that checks if the guess is within the allowed range
     modifier requireGuessInRange(uint256 guess) {
         require(guess >= 0 && guess <= 1000, "Guess must be between 0 and 1000");
+        _;
+    }
+
+    // Modifier that checks if the guess submission perios has not expired yet
+    modifier requireSubmissionIsStillOpen(uint256 guess) {
+        require(block.timestamp < submissionPeriod + startTimestamp, "Guess submission has expired");
+        _;
+    }
+
+    // Modifier that checks if the guess submission perios has not expired yet
+    modifier requireSubmissionClosed(uint256 guess) {
+        require(block.timestamp >= submissionPeriod + startTimestamp, "Guess submission has expired yet");
         _;
     }
 
@@ -53,8 +77,13 @@ contract GuessTheNumberGame {
 
 
     // Modifier that checks if the salt submission period has expired
-    modifier requireSaltSubmissionPeriodExpired(uint256 saltSubmissionDeadline) {
-        require(block.timestamp >= saltSubmissionDeadline, "Salt submission period has not expired yet");
+    modifier requireRevealPeriodExpired() {
+        require(block.timestamp >= block.timestamp + submissionPeriod + revealPeriod, "Reveal period has not expired yet");
+        _;
+    }
+
+    modifier requireRevealPeriodIsOpen() {
+        require(block.timestamp < block.timestamp + submissionPeriod + revealPeriod, "Salt submission period has expired");
         _;
     }
 
@@ -70,74 +99,158 @@ contract GuessTheNumberGame {
         _;
     }
 
+    modifier requireGameStarted() {
+        require(startTimestamp != 0, "Game has not started yet!");
+        _;
+    }
+
+    event GameStarted(uint256 timestamp);
+    event GuessSubmitted(address player);
+    event AllSaltsSubmitted();
+    event AllGuessesSubmitted();
+    event PlayerDropsOut(address player);
+    event WinningGuessCalculated(uint256 winningGuess);
 
 
-    function enterNumber(uint256 _guess, bytes32 _salt) public requireGuessNotSubmitted requireGuessInRange {
+    function startGame() public requireOwner {
+        startTimestamp = block.timestamp;
+        // TODO: empty out all mappings!
+        emit GameStarted(startTimestamp);
+    }
+
+
+    function enterGuess(uint256 _guess, bytes32 _salt) public requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange {
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, _salt));
         playerGuesses[msg.sender] = hashedGuess;
         numPlayers += 1;
+        playerAddresses.push(msg.sender);
+
+        emit GuessSubmitted(msg.sender);
     }
 
-    function calculateWinner() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireSaltSubmissionPeriodExpired {
+    function revealSaltAndGuess(uint _guess, bytes32 _salt) public requireGameStarted requireSubmissionClosed requireGuessSubmitted requireRevealPeriodIsOpen {
+        playerGuesses[msg.sender] = _guess;
+        playerSalts[msg.sender] = _salt;
 
-        uint256 total = 0;
-        for (uint256 i = 0; i < numPlayers; i++) {
-            address playerAddress = address(i);
-            bytes32 hashedGuess = playerGuesses[playerAddress] ^ playerSalts[playerAddress];
-            total += uint256(hashedGuess);
+        if (areAllSaltsCollected){
+            emit AllSaltsSubmitted();
         }
-        uint256 average = total / numPlayers;
-        uint256 closest = 1000;
-        address winnerAddress;
-        for (uint256 j = 0; j < numPlayers; j++) {
-            address playerAddress = address(j);
-            bytes32 hashedGuess = playerGuesses[playerAddress] ^ playerSalts[playerAddress];
-            uint256 distance = average > uint256(hashedGuess) ? average - uint256(hashedGuess) : uint256(hashedGuess) - average;
-            if (distance < closest) {
-                closest = distance;
-                winnerAddress = playerAddress;
-                closestGuess = uint256(hashedGuess);
-            } else if (distance == closest) {
-                winnerAddress = address(0);
+
+        if (areAllGuessesCollected()){
+            emit AllGuessesSubmitted();
+        }
+    }
+
+
+
+    function areAllSaltsCollected() internal returns (bool) {
+        bool allSaltsCollected = true;
+
+        for (uint i = 0; i < playerAddresses.length; i++) {
+            address player = playerAddresses[i];
+            byte32 salt = playerSalts[player];
+
+            if (playerGuesses[player] == 0x000000000000000000000000000000000000000) {
+                allSaltsCollected = false;
+                break;
             }
         }
-        if (winnerAddress == address(0)) {
-            winner = address(0);
+        return allSaltsCollected;
+    }
+
+    function areAllGuessesCollected() internal returns (bool) {
+        bool allGuessesCollected = true;
+
+        for (uint i = 0; i < playerAddresses.length; i++) {
+            address player = playerAddresses[i];
+            byte32 guess = playerRevealedGuesses[player];
+
+            if (playerRevealedGuesses[player] == 0) {
+                allGuessesCollected = false;
+                break;
+            }
+        }
+        return allGuessesCollected;
+    }
+
+    //////////////////////////////////////////////////
+
+
+    function calculateWinningGuess() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired {
+
+        uint256 total = 0;
+
+        for (uint i = 0; i < playerAddresses.length; i++) {
+            address player = playerAddresses[i];
+            byte32 guess = playerGuesses[player];
+            byte32 salt = playerSalts[player];
+            uint256 revealedGuess = playerRevealedGuesses[player];
+
+            bytes32 hashedRevealedGuess = keccak256(abi.encodePacked(guess, salt));
+
+            if (guess != hashedRevealedGuess) {
+                emit PlayerDropsOut(player);
+                droppedOutPlayerAddresses.push(player);
+            } else {
+                guessesOfActivePlayers[player] = guess;
+                activeAddresses.push(player);
+                activeGuesses.push(guess);
+                total += guess;
+            }
+        }
+
+
+        uint256 numberOfActivePlayers = activeAddresses.length;
+        uint256 target = 2 * total / 3* numberOfActivePlayers;
+
+        winningGuess = findClosest(activeGuesses, target);
+        emit WinningGuessCalculated();
+    }
+
+
+    function findClosest(uint256[] memory values, uint256 target) internal pure returns (uint256) {
+        uint256 closestValue = values[0];
+        uint256 smallestDifference = absDiff(closestValue, target);
+
+        for (uint256 i = 1; i < values.length; i++) {
+            uint256 currentValue = values[i];
+            uint256 currentDifference = absDiff(currentValue, target);
+            if (currentDifference < smallestDifference) {
+                smallestDifference = currentDifference;
+                closestValue = currentValue;
+            }
+        }
+
+        return closestValue;
+    }
+
+    function absDiff(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a > b) {
+            return a - b;
         } else {
-            winner = winnerAddress;
+            return b - a;
         }
-        winningNumber = average * 2 / 3;
     }
 
-    function collectSalts() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated {
-
-        for (uint256 i = 0; i < numPlayers; i++) {
-            address playerAddress = address(i);
-            require(playerSalts[playerAddress] == bytes32(0), "Salt has already been collected for this player");
-            playerSalts[playerAddress] = salts[playerAddress];
-        }
-
-        // start timer for players to submit their salt values
-        saltSubmissionDeadline = block.timestamp + saltSubmissionPeriod;
-    }
 
     function selectWinner() requireOwner requirePotentialWinnerExists requireWinningNumberIsNotCalculated public {
 
-        uint256 numWinners = 0;
-        for (uint256 i = 0; i < numPlayers; i++) {
-            if (playerGuesses[address(i)] == closestGuess) {
-                numWinners++;
+        uint[] winningAddresses;
+
+        for (uint256 i = 0; i < activeAddresses.length; i++) {
+            address activeAddress = activeAddresses[i];
+            if (guessesOfActivePlayers[activeAddress] == winningGuess)
+                winningAddresses.push(activeAddress);
             }
-        }
-        if (numWinners == 1) {
-            payable(winner).transfer(address(this).balance);
+        if (winningAddresses.length == 1) {
+            payable(winningAddresses[0]).transfer(address(this).balance);
         } else {
-            uint256 winnerIndex = uint256(blockhash(block.number - 1)) % numWinners;
+            uint256 winnerIndex = uint256(blockhash(block.number - 1)) % winningAddresses.length;
             uint256 count = 0;
-            for (uint256 j = 0; j < numPlayers; j++) {
-                if (playerGuesses[address(j)] == closestGuess) {
+            for (uint256 j = 0; j < winningAddresses.length; j++) {
+                if (guessesOfActivePlayers[winningAddresses[i]] == winningGuess) {
                     if (count == winnerIndex) {
-                        payable(address(j)).transfer(address(this).balance / numWinners);
+                        payable(winningAddresses[i]).transfer(address(this).balance / activeAddresses.length);
                         break;
                     }
                     count++;
