@@ -93,11 +93,6 @@ contract GuessTheNumberGame {
         _;
     }
 
-    // Modifier that checks if there at least one player
-    modifier requireWinningNumberIsNotCalculated(uint256 saltSubmissionDeadline) {
-        require(closestGuess == winningNumber, "The winning number has not been calculated yet");
-        _;
-    }
 
     modifier requireGameStarted() {
         require(startTimestamp != 0, "Game has not started yet!");
@@ -177,7 +172,7 @@ contract GuessTheNumberGame {
 
         for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
-            byte32 salt = playerSalts[player];
+            bytes32 salt = playerSalts[player];
 
             if (playerGuesses[player] == 0x000000000000000000000000000000000000000) {
                 allSaltsCollected = false;
@@ -192,7 +187,7 @@ contract GuessTheNumberGame {
 
         for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
-            byte32 guess = playerRevealedGuesses[player];
+            bytes32 guess = playerRevealedGuesses[player];
 
             if (playerRevealedGuesses[player] == 0) {
                 allGuessesCollected = false;
@@ -211,8 +206,8 @@ contract GuessTheNumberGame {
 
         for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
-            byte32 guess = playerGuesses[player];
-            byte32 salt = playerSalts[player];
+            bytes32 guess = playerGuesses[player];
+            bytes32 salt = playerSalts[player];
             uint256 revealedGuess = playerRevealedGuesses[player];
 
             bytes32 hashedRevealedGuess = keccak256(abi.encodePacked(guess, salt));
@@ -262,7 +257,7 @@ contract GuessTheNumberGame {
     }
 
 
-    function selectWinner() requireOwner requirePotentialWinnerExists requireWinningNumberIsNotCalculated public {
+    function selectWinner() requireOwner requirePotentialWinnerExists public {
 
         uint[] winningAddresses;
 
