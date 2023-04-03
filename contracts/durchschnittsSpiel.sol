@@ -6,11 +6,11 @@ contract GuessTheNumberGame {
     address[] playerAddresses;
     address [] activeAddresses;
     address[] winningAddresses;
-    uint[] activeGuesses;
+    uint[] activeRevealedGuesses;
     address[] droppedOutPlayerAddresses;
     uint256 public winningGuess;
     address public winner;
-    mapping(address => uint256) public playerGuesses;
+    mapping(address => bytes32) public playerGuesses;
     uint256 public submissionPeriod = 1 days;
     uint256 public revealPeriod = 1 hours; // define salt submission period as 1 hour
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
@@ -45,34 +45,34 @@ contract GuessTheNumberGame {
     }
 
     // Modifier that checks if the guess submission perios has not expired yet
-    modifier requireSubmissionIsStillOpen(uint256 guess) {
+    modifier requireSubmissionIsStillOpen() {
         require(block.timestamp < submissionPeriod + startTimestamp, "Guess submission has expired");
         _;
     }
 
     // Modifier that checks if the guess submission perios has not expired yet
-    modifier requireSubmissionClosed(uint256 guess) {
+    modifier requireSubmissionClosed() {
         require(block.timestamp >= submissionPeriod + startTimestamp, "Guess submission has expired yet");
         _;
     }
 
 
     // Modifier that checks if the sender is the owner
-    modifier requireOwner(address owner) {
+    modifier requireOwner() {
         require(msg.sender == owner, "Only owner can calculate the winner");
         _;
     }
 
 
     // Modifier that checks if there are at least one player
-    modifier requireAtLeastOnePlayer(uint256 numPlayers) {
+    modifier requireAtLeastOnePlayer() {
         require(numPlayers > 0, "There must be at least one player to calculate the winner");
         _;
     }
 
     // Modifier that checks if the winning number has not already been calculated
-    modifier requireNotAlreadyCalculated(uint256 winningNumber) {
-        require(winningNumber == 0, "The winning number has already been calculated");
+    modifier requireNotAlreadyCalculated() {
+        require(winningGuess == 1001, "The winning number has already been calculated");
         _;
     }
 
@@ -89,7 +89,7 @@ contract GuessTheNumberGame {
     }
 
     // Modifier that checks if there at least one player
-    modifier requirePotentialWinnerExists(uint256 saltSubmissionDeadline) {
+    modifier requirePotentialWinnerExists() {
         require(winner != address(0), "There must be a winner to select");
         _;
     }
@@ -129,7 +129,7 @@ contract GuessTheNumberGame {
         // Clear all arrays
         delete playerAddresses;
         delete activeAddresses;
-        delete activeGuesses;
+        delete activeRevealedGuesses;
         delete droppedOutPlayerAddresses;
         delete winningAddresses;
 
@@ -138,14 +138,14 @@ contract GuessTheNumberGame {
 
     function startGame() public requireOwner {
         resetVariables();
-        assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001 && winner == address(0));
+        assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeRevealedGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001 && winner == address(0));
         emit VariableReset();
         startTimestamp = block.timestamp;
         emit GameStarted(startTimestamp);
     }
 
 
-    function enterGuess(uint256 _guess, bytes32 _salt) public requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange {
+    function enterGuess(uint256 _guess, bytes32 _salt) public requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, _salt));
         playerGuesses[msg.sender] = hashedGuess;
         numPlayers += 1;
@@ -155,10 +155,10 @@ contract GuessTheNumberGame {
     }
 
     function revealSaltAndGuess(uint _guess, bytes32 _salt) public requireGameStarted requireSubmissionClosed requireGuessSubmitted requireRevealPeriodIsOpen {
-        playerGuesses[msg.sender] = _guess;
+        playerRevealedGuesses[msg.sender] = _guess;
         playerSalts[msg.sender] = _salt;
 
-        if (areAllSaltsCollected){
+        if (areAllSaltsCollected()){
             emit AllSaltsSubmitted();
         }
 
@@ -176,7 +176,7 @@ contract GuessTheNumberGame {
             address player = playerAddresses[i];
             bytes32 salt = playerSalts[player];
 
-            if (playerGuesses[player] == 0x000000000000000000000000000000000000000) {
+            if (playerGuesses[player] == bytes32(0)) {
                 allSaltsCollected = false;
                 break;
             }
@@ -189,7 +189,7 @@ contract GuessTheNumberGame {
 
         for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
-            bytes32 guess = playerRevealedGuesses[player];
+            // bytes32 guess = playerRevealedGuesses[player];
 
             if (playerRevealedGuesses[player] == 0) {
                 allGuessesCollected = false;
@@ -218,10 +218,10 @@ contract GuessTheNumberGame {
                 emit PlayerDropsOut(player);
                 droppedOutPlayerAddresses.push(player);
             } else {
-                guessesOfActivePlayers[player] = guess;
+                guessesOfActivePlayers[player] = revealedGuess;
                 activeAddresses.push(player);
-                activeGuesses.push(guess);
-                total += guess;
+                activeRevealedGuesses.push(revealedGuess);
+                total += revealedGuess;
             }
         }
 
@@ -229,8 +229,8 @@ contract GuessTheNumberGame {
         uint256 numberOfActivePlayers = activeAddresses.length;
         uint256 target = 2 * total / 3* numberOfActivePlayers;
 
-        winningGuess = findClosest(activeGuesses, target);
-        emit WinningGuessCalculated();
+        winningGuess = findClosest(activeRevealedGuesses, target);
+        emit WinningGuessCalculated(winningGuess);
     }
 
 
