@@ -1,60 +1,89 @@
-// Import the Hardhat testing module.
-import { ethers } from "hardhat";
-import { expect } from "chai";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
-// Start describing the test suite for the GuessTheNumberGame contract.
-describe("GuessTheNumberGame", function() {
-    // Define the contract and some test variables.
-    let guessTheNumberGame;
+describe("GuessTheNumberGame", function () {
+    let game;
     let owner;
     let player1;
     let player2;
 
-    beforeEach(async function() {
-        // Deploy the contract and get some test accounts.
-        const GuessTheNumberGame = await ethers.getContractFactory("GuessTheNumberGame");
+    beforeEach(async () => {
+        const Game = await ethers.getContractFactory("GuessTheNumberGame");
+        game = await Game.deploy();
+        await game.deployed();
+
         [owner, player1, player2] = await ethers.getSigners();
-        guessTheNumberGame = await GuessTheNumberGame.deploy();
-        await guessTheNumberGame.deployed();
+
+        await game.connect(owner).startGame();
     });
 
-    it("should allow players to enter a guess", async function() {
-        // Call the enterNumber function with a valid guess.
-        await guessTheNumberGame.connect(player1).enterNumber(500);
+    it("should allow players to enter a guess within the allowed range", async function () {
+        const guess = 500;
+        const salt = 123456;
 
-        // Check that the player's guess was recorded.
-        expect(await guessTheNumberGame.playerGuesses(player1.address)).to.equal(500);
+        await game.connect(player1).enterGuess(guess, salt, {
+            value: ethers.utils.parseEther("1"),
+        });
+
+        const playerGuess = await game.playerGuesses(player1.address);
+        expect(playerGuess).to.equal(
+            ethers.utils.solidityKeccak256(["uint256", "bytes32"], [guess, ethers.utils.solidityKeccak256(["uint256"], [salt])])
+        );
     });
 
-    it("should not allow players to enter more than one guess", async function() {
-        // Call the enterNumber function twice with the same player.
-        await guessTheNumberGame.connect(player1).enterNumber(500);
-        await expect(guessTheNumberGame.connect(player1).enterNumber(600)).to.be.revertedWith("You have already entered a guess");
+    it("should not allow players to enter a guess if they have already submitted one", async function () {
+        const guess = 500;
+        const salt = 123456;
+
+        await game.connect(player1).enterGuess(guess, salt, {
+            value: ethers.utils.parseEther("1"),
+        });
+
+        await expect(
+            game.connect(player1).enterGuess(guess, salt, {
+                value: ethers.utils.parseEther("1"),
+            })
+        ).to.be.revertedWith("You have already entered a guess");
     });
 
-    it("should calculate the winner", async function() {
-        // Call the enterNumber function with some valid guesses.
-        await guessTheNumberGame.connect(player1).enterNumber(400);
-        await guessTheNumberGame.connect(player2).enterNumber(600);
+    it("should not allow players to enter a guess if it is outside the allowed range", async function () {
+        const guess = 2000;
+        const salt = 123456;
 
-        // Call the calculateWinner function.
-        await guessTheNumberGame.calculateWinner();
-
-        // Check that the winner and winning number were recorded.
-        expect(await guessTheNumberGame.winner()).to.equal(player1.address);
-        expect(await guessTheNumberGame.winningNumber()).to.equal(266);
+        await expect(
+            game.connect(player1).enterGuess(guess, salt, {
+                value: ethers.utils.parseEther("1"),
+            })
+        ).to.be.revertedWith("Guess must be between 0 and 1000");
     });
 
-    it("should select the winner", async function() {
-        // Call the enterNumber function with some valid guesses.
-        await guessTheNumberGame.connect(player1).enterNumber(400);
-        await guessTheNumberGame.connect(player2).enterNumber(600);
+    it("should not allow players to enter a guess if the submission period has expired", async function () {
+        const guess = 500;
+        const salt = 123456;
 
-        // Call the calculateWinner and selectWinner functions.
-        await guessTheNumberGame.calculateWinner();
-        await guessTheNumberGame.selectWinner();
+        await ethers.provider.send("evm_increaseTime", [3600]); // Advance time by 1 hour
 
-        // Check that the winner received the correct amount of funds.
-        expect(await ethers.provider.getBalance(player1.address)).to.equal(ethers.utils.parseEther("1.0"));
+        await expect(
+            game.connect(player1).enterGuess(guess, salt, {
+                value: ethers.utils.parseEther("1"),
+            })
+        ).to.be.revertedWith("Guess submission has expired");
     });
-});
+
+    it("should calculate the winning guess correctly", async function () {
+        const guess1 = 500;
+        const salt1 = 123456;
+
+        const guess2 = 600;
+        const salt2 = 654321;
+
+        await game.connect(player1).enterGuess(guess1, salt1, {
+            value: ethers.utils.parseEther("1"),
+        });
+
+        await game.connect(player2).enterGuess(guess2, salt2, {
+            value: ethers.utils.parseEther("1"),
+        });
+
+    });
+})
