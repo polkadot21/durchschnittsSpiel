@@ -3,19 +3,20 @@ pragma solidity ^0.8.0;
 contract GuessTheNumberGame {
     address public owner;
     uint256 public numPlayers;
-    address[] playerAddresses;
-    address [] activeAddresses;
-    address[] winningAddresses;
-    uint[] activeRevealedGuesses;
-    address[] droppedOutPlayerAddresses;
+    address[] public playerAddresses;
+    address[] public revealedAddresses;
+    address [] public activeAddresses;
+    address[] public winningAddresses;
+    uint[] public activeRevealedGuesses;
+    address[] public droppedOutPlayerAddresses;
     uint256 public winningGuess;
-    address public winner;
     mapping(address => bytes32) public playerGuesses;
-    uint256 public submissionPeriod = 5;
-    uint256 public revealPeriod = 5;
+    uint256 public submissionPeriod = 1 hours;
+    uint256 public revealPeriod = 1 hours;
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
+    uint256 public participationFee;
 
     uint256 startTimestamp;
 
@@ -23,8 +24,8 @@ contract GuessTheNumberGame {
     constructor() {
         owner = msg.sender;
         numPlayers = 0;
-        winner = address(0);
         winningGuess = 1001; // > 1000 which is the maximum accepted guess
+        participationFee = 1 ether;
     }
 
     // Modifier that checks if the player has already submitted a guess
@@ -90,7 +91,7 @@ contract GuessTheNumberGame {
 
     // Modifier that checks if there at least one player
     modifier requirePotentialWinnerExists() {
-        require(winner != address(0), "There must be a winner to select");
+        require(winningGuess != 0 && winningGuess < 1001, "Winning guess must be between 1 and 1000");
         _;
     }
 
@@ -99,6 +100,12 @@ contract GuessTheNumberGame {
         require(startTimestamp != 0, "Game has not started yet!");
         _;
     }
+
+    modifier requireAtLeastOnePlayerRevealedGuessAndSalt() {
+        require(revealedAddresses.length > 0, "At least one player must reveal his guess and salt");
+        _;
+    }
+
 
     event VariableReset();
     event GameStarted(uint256 timestamp);
@@ -112,7 +119,6 @@ contract GuessTheNumberGame {
     function resetVariables() public requireOwner {
         numPlayers = 0;
         winningGuess = 1001;
-        winner = address(0);
 
         for (uint i=0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
@@ -138,14 +144,17 @@ contract GuessTheNumberGame {
 
     function startGame() public requireOwner {
         resetVariables();
-        assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeRevealedGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001 && winner == address(0));
+        assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeRevealedGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001);
         emit VariableReset();
         startTimestamp = block.timestamp;
         emit GameStarted(startTimestamp);
     }
 
 
-    function enterGuess(uint256 _guess, uint256 _salt) public requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
+    function enterGuess(uint256 _guess, uint256 _salt) public payable requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
+
+        require(msg.value >= participationFee, "Insufficient participation fee");
+
         bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, encodedSalt));
         playerGuesses[msg.sender] = hashedGuess;
@@ -160,6 +169,8 @@ contract GuessTheNumberGame {
 
         bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
         playerSalts[msg.sender] = encodedSalt;
+
+        revealedAddresses.push(msg.sender);
 
         if (areAllSaltsCollected()){
             emit AllSaltsSubmitted();
@@ -204,17 +215,17 @@ contract GuessTheNumberGame {
     //////////////////////////////////////////////////
 
 
-    function calculateWinningGuess() public payable requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired {
+    function calculateWinningGuess() public payable requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
 
         uint256 total = 0;
 
-        for (uint i = 0; i < playerAddresses.length; i++) {
-            address player = playerAddresses[i];
+        for (uint i = 0; i < revealedAddresses.length; i++) {
+            address player = revealedAddresses[i];
             bytes32 guess = playerGuesses[player];
             bytes32 salt = playerSalts[player];
             uint256 revealedGuess = playerRevealedGuesses[player];
 
-            bytes32 hashedRevealedGuess = keccak256(abi.encodePacked(guess, salt));
+            bytes32 hashedRevealedGuess = keccak256(abi.encodePacked(revealedGuess, salt));
 
             if (guess != hashedRevealedGuess) {
                 emit PlayerDropsOut(player);
@@ -226,7 +237,6 @@ contract GuessTheNumberGame {
                 total += revealedGuess;
             }
         }
-
 
         uint256 numberOfActivePlayers = activeAddresses.length;
         uint256 target = (2 * total) / (3* numberOfActivePlayers);
@@ -261,7 +271,7 @@ contract GuessTheNumberGame {
     }
 
 
-    function selectWinner() requireOwner requirePotentialWinnerExists public {
+    function selectWinner() public payable requireOwner requirePotentialWinnerExists {
 
         for (uint256 i = 0; i < activeAddresses.length; i++) {
             address activeAddress = activeAddresses[i];
