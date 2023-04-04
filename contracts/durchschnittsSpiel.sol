@@ -11,8 +11,8 @@ contract GuessTheNumberGame {
     uint256 public winningGuess;
     address public winner;
     mapping(address => bytes32) public playerGuesses;
-    uint256 public submissionPeriod = 1 days;
-    uint256 public revealPeriod = 1 hours; // define salt submission period as 1 hour
+    uint256 public submissionPeriod = 5;
+    uint256 public revealPeriod = 5;
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
@@ -52,7 +52,7 @@ contract GuessTheNumberGame {
 
     // Modifier that checks if the guess submission perios has not expired yet
     modifier requireSubmissionClosed() {
-        require(block.timestamp >= submissionPeriod + startTimestamp, "Guess submission has expired yet");
+        require(block.timestamp >= submissionPeriod + startTimestamp, "Guess submission hasn't expired yet");
         _;
     }
 
@@ -79,12 +79,12 @@ contract GuessTheNumberGame {
 
     // Modifier that checks if the salt submission period has expired
     modifier requireRevealPeriodExpired() {
-        require(block.timestamp >= block.timestamp + submissionPeriod + revealPeriod, "Reveal period has not expired yet");
+        require(block.timestamp >= startTimestamp + submissionPeriod + revealPeriod, "Reveal period has not expired yet");
         _;
     }
 
     modifier requireRevealPeriodIsOpen() {
-        require(block.timestamp < block.timestamp + submissionPeriod + revealPeriod, "Salt submission period has expired");
+        require(block.timestamp < startTimestamp + submissionPeriod + revealPeriod, "Salt submission period has expired");
         _;
     }
 
@@ -145,8 +145,9 @@ contract GuessTheNumberGame {
     }
 
 
-    function enterGuess(uint256 _guess, bytes32 _salt) public requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
-        bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, _salt));
+    function enterGuess(uint256 _guess, uint256 _salt) public requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
+        bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
+        bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, encodedSalt));
         playerGuesses[msg.sender] = hashedGuess;
         numPlayers += 1;
         playerAddresses.push(msg.sender);
@@ -154,9 +155,11 @@ contract GuessTheNumberGame {
         emit GuessSubmitted(msg.sender);
     }
 
-    function revealSaltAndGuess(uint _guess, bytes32 _salt) public requireGameStarted requireSubmissionClosed requireGuessSubmitted requireRevealPeriodIsOpen {
+    function revealSaltAndGuess(uint _guess, uint256 _salt) public requireGameStarted requireSubmissionClosed requireGuessSubmitted requireRevealPeriodIsOpen {
         playerRevealedGuesses[msg.sender] = _guess;
-        playerSalts[msg.sender] = _salt;
+
+        bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
+        playerSalts[msg.sender] = encodedSalt;
 
         if (areAllSaltsCollected()){
             emit AllSaltsSubmitted();
@@ -169,12 +172,11 @@ contract GuessTheNumberGame {
 
 
 
-    function areAllSaltsCollected() internal returns (bool) {
+    function areAllSaltsCollected() internal view returns (bool) {
         bool allSaltsCollected = true;
 
         for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
-            bytes32 salt = playerSalts[player];
 
             if (playerGuesses[player] == bytes32(0)) {
                 allSaltsCollected = false;
@@ -184,7 +186,7 @@ contract GuessTheNumberGame {
         return allSaltsCollected;
     }
 
-    function areAllGuessesCollected() internal returns (bool) {
+    function areAllGuessesCollected() internal view returns (bool) {
         bool allGuessesCollected = true;
 
         for (uint i = 0; i < playerAddresses.length; i++) {
@@ -202,7 +204,7 @@ contract GuessTheNumberGame {
     //////////////////////////////////////////////////
 
 
-    function calculateWinningGuess() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired {
+    function calculateWinningGuess() public payable requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired {
 
         uint256 total = 0;
 
@@ -227,7 +229,7 @@ contract GuessTheNumberGame {
 
 
         uint256 numberOfActivePlayers = activeAddresses.length;
-        uint256 target = 2 * total / 3* numberOfActivePlayers;
+        uint256 target = (2 * total) / (3* numberOfActivePlayers);
 
         winningGuess = findClosest(activeRevealedGuesses, target);
         emit WinningGuessCalculated(winningGuess);
