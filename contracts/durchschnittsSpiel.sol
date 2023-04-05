@@ -1,7 +1,10 @@
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+
 contract GuessTheNumberGame {
-    address public owner;
+    address payable public owner;
     uint256 public numPlayers;
     address[] public playerAddresses;
     address[] public revealedAddresses;
@@ -17,15 +20,17 @@ contract GuessTheNumberGame {
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
     uint256 public participationFee;
+    uint256 public ownersPercentFee;
 
     uint256 startTimestamp;
 
 
     constructor() {
-        owner = msg.sender;
+        owner = payable(msg.sender);
         numPlayers = 0;
         winningGuess = 1001; // > 1000 which is the maximum accepted guess
-        participationFee = 1 ether;
+        participationFee = 10000000000000000; // 0.01 ethers
+        ownersPercentFee = 10;
     }
 
     // Modifier that checks if the player has already submitted a guess
@@ -120,7 +125,7 @@ contract GuessTheNumberGame {
         numPlayers = 0;
         winningGuess = 1001;
 
-        for (uint i=0; i < playerAddresses.length; i++) {
+        for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
             delete playerGuesses[player];
             delete playerSalts[player];
@@ -154,6 +159,8 @@ contract GuessTheNumberGame {
     function enterGuess(uint256 _guess, uint256 _salt) public payable requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
 
         require(msg.value >= participationFee, "Insufficient participation fee");
+        require(msg.value == participationFee, string(abi.encodePacked("The fee is ", Strings.toString(participationFee), " wei")));
+        owner.transfer(msg.value * ownersPercentFee / 100);
 
         bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, encodedSalt));
@@ -215,7 +222,7 @@ contract GuessTheNumberGame {
     //////////////////////////////////////////////////
 
 
-    function calculateWinningGuess() public payable requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
+    function calculateWinningGuess() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
 
         uint256 total = 0;
 
