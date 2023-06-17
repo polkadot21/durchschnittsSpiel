@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-
-contract GuessTheNumberGame {
+contract GuessTheNumberGame is Ownable {
     address payable public owner;
     uint256 public numPlayers;
     address[] public playerAddresses;
@@ -27,7 +27,6 @@ contract GuessTheNumberGame {
 
 
     constructor() {
-        owner = payable(msg.sender);
         numPlayers = 0;
         winningGuess = 1001; // > 1000 which is the maximum accepted guess
         participationFee = 10000000000000000; // 0.01 ethers
@@ -60,13 +59,6 @@ contract GuessTheNumberGame {
     // Modifier that checks if the guess submission perios has not expired yet
     modifier requireSubmissionClosed() {
         require(block.timestamp >= submissionPeriod + startTimestamp, "Guess submission hasn't expired yet");
-        _;
-    }
-
-
-    // Modifier that checks if the sender is the owner
-    modifier requireOwner() {
-        require(msg.sender == owner, "Only owner can calculate the winner");
         _;
     }
 
@@ -122,7 +114,7 @@ contract GuessTheNumberGame {
     event WinningGuessCalculated(uint256 winningGuess);
 
 
-    function resetVariables() public requireOwner {
+    function resetVariables() public onlyOwner {
         numPlayers = 0;
         winningGuess = 1001;
 
@@ -148,7 +140,7 @@ contract GuessTheNumberGame {
     }
 
 
-    function startGame() public requireOwner {
+    function startGame() public onlyOwner {
         resetVariables();
         assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeRevealedGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001);
         emit VariableReset();
@@ -223,7 +215,7 @@ contract GuessTheNumberGame {
     //////////////////////////////////////////////////
 
 
-    function calculateWinningGuess() public requireOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
+    function calculateWinningGuess() public onlyOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
 
         uint256 total = 0;
 
@@ -279,7 +271,7 @@ contract GuessTheNumberGame {
     }
 
 
-    function selectWinner() public payable requireOwner requirePotentialWinnerExists {
+    function selectWinner() public payable onlyOwner requirePotentialWinnerExists {
 
         for (uint256 i = 0; i < activeAddresses.length; i++) {
             address activeAddress = activeAddresses[i];
