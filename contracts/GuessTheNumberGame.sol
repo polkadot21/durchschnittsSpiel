@@ -27,7 +27,6 @@ contract GuessTheNumberGame is Ownable {
 
     constructor() {
         numPlayers = 0;
-        winningGuess = 1001; // > 1000 which is the maximum accepted guess
         participationFee = 10000000000000000; // 0.01 ethers
         ownersPercentFee = 10;
     }
