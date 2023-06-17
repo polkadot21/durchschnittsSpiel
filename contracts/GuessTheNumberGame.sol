@@ -22,14 +22,17 @@ contract GuessTheNumberGame is Ownable {
     mapping(address => uint256) public guessesOfActivePlayers;
     uint256 public participationFee;
     uint256 public ownersPercentFee;
+    bool public isWinningGuessCalculated;
 
     uint256 startTimestamp;
 
 
     constructor() {
+        _setOwner(_msgSender());
         numPlayers = 0;
         participationFee = 10000000000000000; // 0.01 ethers
         ownersPercentFee = 10;
+        isWinningGuessCalculated = false;
     }
 
     // Modifier that checks if the player has already submitted a guess
@@ -70,7 +73,7 @@ contract GuessTheNumberGame is Ownable {
 
     // Modifier that checks if the winning number has not already been calculated
     modifier requireNotAlreadyCalculated() {
-        require(winningGuess == 1001, "The winning number has already been calculated");
+        require(!isWinningGuessCalculated, "The winning number has already been calculated");
         _;
     }
 
@@ -116,6 +119,7 @@ contract GuessTheNumberGame is Ownable {
     function resetVariables() public onlyOwner {
         numPlayers = 0;
         winningGuess = 1001;
+        isWinningGuessCalculated = false;
 
         for (uint i = 0; i < playerAddresses.length; i++) {
             address player = playerAddresses[i];
@@ -180,7 +184,6 @@ contract GuessTheNumberGame is Ownable {
     }
 
 
-
     function areAllSaltsCollected() internal view returns (bool) {
         bool allSaltsCollected = true;
 
@@ -240,6 +243,7 @@ contract GuessTheNumberGame is Ownable {
         uint256 target = (2 * total) / (3* numberOfActivePlayers);
 
         winningGuess = findClosest(activeRevealedGuesses, target);
+        isWinningGuessCalculated = true;
         emit WinningGuessCalculated(winningGuess);
     }
 
