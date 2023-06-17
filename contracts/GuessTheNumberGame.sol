@@ -153,11 +153,12 @@ contract GuessTheNumberGame is Ownable {
 
         bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, encodedSalt));
-        playerGuesses[msg.sender] = hashedGuess;
+        address playerAddress = msg.sender;
+        playerGuesses[playerAddress] = hashedGuess;
         numPlayers += 1;
-        playerAddresses.push(msg.sender);
+        playerAddresses.push(playerAddress);
 
-        emit GuessSubmitted(msg.sender);
+        emit GuessSubmitted(playerAddress);
     }
 
     function revealSaltAndGuess(uint _guess, uint256 _salt) public requireGameStarted requireSubmissionClosed requireGuessSubmitted requireRevealPeriodIsOpen {
