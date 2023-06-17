@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract GuessTheNumberGame is Ownable {
-    address payable public owner;
     uint256 public numPlayers;
     address[] public playerAddresses;
     address[] public revealedAddresses;
@@ -153,7 +152,7 @@ contract GuessTheNumberGame is Ownable {
 
         require(msg.value >= participationFee, "Insufficient participation fee");
         require(msg.value == participationFee, string(abi.encodePacked("The fee is ", Strings.toString(participationFee), " wei")));
-        owner.transfer(msg.value * ownersPercentFee / 100);
+        payable(owner()).transfer(msg.value * ownersPercentFee / 100);
 
         bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
         bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, encodedSalt));
