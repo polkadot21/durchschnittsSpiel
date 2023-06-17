@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./CloneFactory.sol";  // Ensure you have a file named CloneFactory.sol in your project directory
 
 contract GuessTheNumberGame is Ownable {
     uint256 public numPlayers;
@@ -293,4 +294,23 @@ contract GuessTheNumberGame is Ownable {
     }
 
     receive() external payable {}
+}
+
+contract GameFactory is CloneFactory {
+    GuessTheNumberGame[] public games;
+    address masterContract;
+
+    constructor(address _masterContract) {
+        masterContract = _masterContract;
+    }
+
+    function createGame() external {
+        GuessTheNumberGame game = GuessTheNumberGame(payable(createClone(masterContract)));
+        game.transferOwnership(msg.sender);  // set the owner of the game contract to the one who called createGame()
+        games.push(game);
+    }
+
+    function getGames() external view returns(GuessTheNumberGame[] memory) {
+        return games;
+    }
 }
