@@ -135,14 +135,12 @@ contract GuessTheNumberGame is Ownable {
         delete activeRevealedGuesses;
         delete droppedOutPlayerAddresses;
         delete winningAddresses;
-
+        emit VariableReset();
     }
 
 
     function startGame() public onlyOwner {
         resetVariables();
-        assert(numPlayers == 0 && playerAddresses.length == 0 && activeAddresses.length == 0 && activeRevealedGuesses.length == 0 && droppedOutPlayerAddresses.length == 0 && winningGuess == 1001);
-        emit VariableReset();
         startTimestamp = block.timestamp;
         emit GameStarted(startTimestamp);
     }
