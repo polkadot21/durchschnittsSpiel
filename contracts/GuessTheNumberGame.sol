@@ -26,6 +26,7 @@ contract GuessTheNumberGame is Ownable {
 
 
     constructor() {
+        _setOwner(_msgSender());
         numPlayers = 0;
         participationFee = 10000000000000000; // 0.01 ethers
         ownersPercentFee = 10;
