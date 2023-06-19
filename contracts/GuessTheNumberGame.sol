@@ -14,8 +14,8 @@ contract GuessTheNumberGame is Ownable {
     address[] public droppedOutPlayerAddresses;
     uint256 public winningGuess;
     mapping(address => bytes32) public playerGuesses;
-    uint256 public submissionPeriod = 1 hours;
-    uint256 public revealPeriod = 1 hours;
+    uint256 public submissionPeriod = 1 minutes;
+    uint256 public revealPeriod = 1 minutes;
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
