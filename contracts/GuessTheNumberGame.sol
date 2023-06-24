@@ -16,8 +16,8 @@ contract GuessTheNumberGame is Ownable {
     address[] public droppedOutPlayerAddresses;
     uint256 public winningGuess;
     mapping(address => bytes32) public playerGuesses;
-    uint256 public submissionPeriod = 1 minutes;
-    uint256 public revealPeriod = 1 minutes;
+    uint256 public submissionPeriod = 10;
+    uint256 public revealPeriod = 10;
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
@@ -26,10 +26,12 @@ contract GuessTheNumberGame is Ownable {
     bool public isWinningGuessCalculated;
     uint256 public minNumPlayers;
 
-    uint256 startTimestamp;
+    uint256 public startBlock;
 
 
     constructor() {
+
+        startBlock = block.number;
         numPlayers = 0;
         minNumPlayers = 3;
         participationFee = 10000000000000000; // 0.01 ethers
@@ -54,15 +56,16 @@ contract GuessTheNumberGame is Ownable {
         _;
     }
 
-    // Modifier that checks if the guess submission perios has not expired yet
+    // Modifier that checks if the guess submission period has not expired yet
     modifier requireSubmissionIsStillOpen() {
-        require(block.timestamp < submissionPeriod + startTimestamp, "Guess submission has expired");
+        require(block.number <= startBlock + submissionPeriod, "Guess submission period has expired");
         _;
     }
 
-    // Modifier that checks if the guess submission perios has not expired yet
+
+    // Modifier that checks if the guess submission period has expired
     modifier requireSubmissionClosed() {
-        require(block.timestamp >= submissionPeriod + startTimestamp, "Guess submission hasn't expired yet");
+        require(block.number > startBlock + submissionPeriod, "Guess submission period hasn't expired yet");
         _;
     }
 
@@ -82,12 +85,13 @@ contract GuessTheNumberGame is Ownable {
 
     // Modifier that checks if the salt submission period has expired
     modifier requireRevealPeriodExpired() {
-        require(block.timestamp >= startTimestamp + submissionPeriod + revealPeriod, "Reveal period has not expired yet");
+        require(block.number >= startBlock + submissionPeriod + revealPeriod, "Reveal period has not expired yet");
         _;
     }
 
+    // Modifier that checks if the salt submission period has not expired yet
     modifier requireRevealPeriodIsOpen() {
-        require(block.timestamp < startTimestamp + submissionPeriod + revealPeriod, "Salt submission period has expired");
+        require(block.number < startBlock + submissionPeriod + revealPeriod, "Salt submission period has expired");
         _;
     }
 
