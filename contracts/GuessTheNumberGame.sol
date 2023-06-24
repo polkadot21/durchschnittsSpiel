@@ -155,22 +155,20 @@ contract GuessTheNumberGame is Ownable {
         emit GameStarted(startTimestamp);
     }
 
-
-    function enterGuess(uint256 _guess, uint256 _salt) public payable requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted requireGuessInRange(_guess) {
+    function enterGuess(bytes32 _hashedGuess) public payable requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted {
 
         require(msg.value >= participationFee, "Insufficient participation fee");
         require(msg.value == participationFee, string(abi.encodePacked("The fee is ", Strings.toString(participationFee), " wei")));
         payable(owner()).transfer(msg.value * ownersPercentFee / 100);
 
-        bytes32 encodedSalt = keccak256(abi.encodePacked(_salt));
-        bytes32 hashedGuess = keccak256(abi.encodePacked(_guess, encodedSalt));
         address playerAddress = msg.sender;
-        playerGuesses[playerAddress] = hashedGuess;
+        playerGuesses[playerAddress] = _hashedGuess;
         numPlayers += 1;
         playerAddresses.push(playerAddress);
 
         emit GuessSubmitted(playerAddress);
     }
+
 
     function revealSaltAndGuess(uint _guess, uint256 _salt) public requireGameStarted requireSubmissionClosed requireGuessSubmitted requireRevealPeriodIsOpen {
         playerRevealedGuesses[msg.sender] = _guess;
