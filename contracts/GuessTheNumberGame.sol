@@ -102,8 +102,9 @@ contract GuessTheNumberGame is Ownable {
     }
 
 
+    // Modifier that checks if the game has started
     modifier requireGameStarted() {
-        require(startTimestamp != 0, "Game has not started yet!");
+        require(startBlock != 0, "Game has not started yet!");
         _;
     }
 
@@ -151,8 +152,8 @@ contract GuessTheNumberGame is Ownable {
 
     function startGame() public onlyOwner {
         resetVariables();
-        startTimestamp = block.timestamp;
-        emit GameStarted(startTimestamp);
+        startBlock = block.number;
+        emit GameStarted(startBlock);
     }
 
     function enterGuess(bytes32 _hashedGuess) public payable requireGameStarted requireSubmissionIsStillOpen requireGuessNotSubmitted {
