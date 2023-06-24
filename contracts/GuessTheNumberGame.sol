@@ -24,12 +24,14 @@ contract GuessTheNumberGame is Ownable {
     uint256 public participationFee;
     uint256 public ownersPercentFee;
     bool public isWinningGuessCalculated;
+    uint256 public minNumPlayers;
 
     uint256 startTimestamp;
 
 
     constructor() {
         numPlayers = 0;
+        minNumPlayers = 3;
         participationFee = 10000000000000000; // 0.01 ethers
         ownersPercentFee = 10;
         isWinningGuessCalculated = false;
@@ -65,9 +67,9 @@ contract GuessTheNumberGame is Ownable {
     }
 
 
-    // Modifier that checks if there are at least one player
-    modifier requireAtLeastOnePlayer() {
-        require(numPlayers > 0, "There must be at least one player to calculate the winner");
+    // Modifier that checks if there the min number of players are present
+    modifier requireMinNumPlayersAchieved() {
+        require(numPlayers > minNumPlayers, "There are not enough players to calculate the winner");
         _;
     }
 
@@ -216,7 +218,7 @@ contract GuessTheNumberGame is Ownable {
     //////////////////////////////////////////////////
 
 
-    function calculateWinningGuess() public onlyOwner requireAtLeastOnePlayer requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
+    function calculateWinningGuess() public onlyOwner requireMinNumPlayersAchieved requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
 
         uint256 total = 0;
 
