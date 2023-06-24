@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
 contract GuessTheNumberGame is Ownable {
     uint256 public numPlayers;
@@ -27,7 +29,6 @@ contract GuessTheNumberGame is Ownable {
 
 
     constructor() {
-        _setOwner(_msgSender());
         numPlayers = 0;
         participationFee = 10000000000000000; // 0.01 ethers
         ownersPercentFee = 10;
@@ -298,3 +299,5 @@ contract GuessTheNumberGame is Ownable {
 
     receive() external payable {}
 }
+
+
