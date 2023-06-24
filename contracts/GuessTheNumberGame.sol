@@ -1,10 +1,30 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import './CloneFactory.sol';
+
+
+contract Factory is CloneFactory {
+    GuessTheNumberGame[] public children;
+    address masterContract;
+
+    constructor(address payable _masterContract){
+        masterContract = _masterContract;
+    }
+
+    function createChild() external{
+        address payable cloneAddress = payable(address(uint160(createClone(masterContract))));
+        GuessTheNumberGame child = GuessTheNumberGame(cloneAddress);
+        child.init();
+        children.push(child);
+    }
+
+    function getChildren() external view returns(GuessTheNumberGame[] memory){
+        return children;
+    }
+}
 
 contract GuessTheNumberGame is Ownable {
     uint256 public numPlayers;
@@ -24,12 +44,14 @@ contract GuessTheNumberGame is Ownable {
     uint256 public participationFee;
     uint256 public ownersPercentFee;
     bool public isWinningGuessCalculated;
+    uint256 public minGuess = 0;
+    uint256 public maxGuess = 1000;
     uint256 public minNumPlayers;
 
     uint256 public startBlock;
 
 
-    constructor() {
+    function init() external {
 
         startBlock = block.number;
         numPlayers = 0;
@@ -52,7 +74,7 @@ contract GuessTheNumberGame is Ownable {
 
     // Modifier that checks if the guess is within the allowed range
     modifier requireGuessInRange(uint256 guess) {
-        require(guess >= 0 && guess <= 1000, "Guess must be between 0 and 1000");
+        require(guess >= minGuess && guess <= maxGuess, "Guess must be between 0 and 1000");
         _;
     }
 
@@ -97,7 +119,7 @@ contract GuessTheNumberGame is Ownable {
 
     // Modifier that checks if there at least one player
     modifier requirePotentialWinnerExists() {
-        require(winningGuess != 0 && winningGuess < 1001, "Winning guess must be between 1 and 1000");
+        require(winningGuess != minGuess && winningGuess < maxGuess + 1, "Winning guess must be between 1 and 1000");
         _;
     }
 
@@ -125,7 +147,7 @@ contract GuessTheNumberGame is Ownable {
 
     function resetVariables() public onlyOwner {
         numPlayers = 0;
-        winningGuess = 1001;
+        winningGuess = maxGuess + 1;
         isWinningGuessCalculated = false;
 
         for (uint i = 0; i < playerAddresses.length; i++) {
@@ -304,5 +326,3 @@ contract GuessTheNumberGame is Ownable {
 
     receive() external payable {}
 }
-
-
