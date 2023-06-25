@@ -27,7 +27,7 @@ contract Factory is CloneFactory {
 }
 
 contract GuessTheNumberGame is Ownable {
-    uint256 public numPlayers=0;
+    uint256 public numPlayers=3;
     address[] public playerAddresses;
     address[] public revealedAddresses;
     address [] public activeAddresses;
@@ -36,12 +36,12 @@ contract GuessTheNumberGame is Ownable {
     address[] public droppedOutPlayerAddresses;
     uint256 public winningGuess;
     mapping(address => bytes32) public playerGuesses;
-    uint256 public submissionPeriod = 10;
-    uint256 public revealPeriod = 10;
+    uint256 public submissionPeriod = 5;
+    uint256 public revealPeriod = 5;
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
-    uint256 public participationFee = 10000000000000000; // 0.01 ethers
+    uint256 public participationFee = 1000000000000000; // 0.001 ethers
     uint256 public ownersPercentFee = 10;
     bool public isWinningGuessCalculated=false;
     uint256 public minGuess = 0;
@@ -53,12 +53,6 @@ contract GuessTheNumberGame is Ownable {
 
     function init() external {
 
-//        startBlock = block.number;
-//        numPlayers = 0;
-//        minNumPlayers = 3;
-//        participationFee = 10000000000000000; // 0.01 ethers
-//        ownersPercentFee = 10;
-//        isWinningGuessCalculated = false;
     }
 
     // Modifier that checks if the player has already submitted a guess
@@ -239,8 +233,6 @@ contract GuessTheNumberGame is Ownable {
         }
         return allGuessesCollected;
     }
-
-    //////////////////////////////////////////////////
 
 
     function calculateWinningGuess() public onlyOwner requireMinNumPlayersAchieved requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
