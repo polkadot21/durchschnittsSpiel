@@ -27,7 +27,7 @@ contract Factory is CloneFactory {
 }
 
 contract GuessTheNumberGame is Ownable {
-    uint256 public numPlayers;
+    uint256 public numPlayers=0;
     address[] public playerAddresses;
     address[] public revealedAddresses;
     address [] public activeAddresses;
@@ -41,24 +41,24 @@ contract GuessTheNumberGame is Ownable {
     mapping(address => bytes32) public playerSalts; // map player addresses to salt values
     mapping(address => uint256) public playerRevealedGuesses; // map player addresses to submitted guesses
     mapping(address => uint256) public guessesOfActivePlayers;
-    uint256 public participationFee;
-    uint256 public ownersPercentFee;
-    bool public isWinningGuessCalculated;
+    uint256 public participationFee = 10000000000000000; // 0.01 ethers
+    uint256 public ownersPercentFee = 10;
+    bool public isWinningGuessCalculated=false;
     uint256 public minGuess = 0;
     uint256 public maxGuess = 1000;
-    uint256 public minNumPlayers;
+    uint256 public minNumPlayers=3;
 
-    uint256 public startBlock;
+    uint256 public startBlock=block.number;
 
 
     function init() external {
 
-        startBlock = block.number;
-        numPlayers = 0;
-        minNumPlayers = 3;
-        participationFee = 10000000000000000; // 0.01 ethers
-        ownersPercentFee = 10;
-        isWinningGuessCalculated = false;
+//        startBlock = block.number;
+//        numPlayers = 0;
+//        minNumPlayers = 3;
+//        participationFee = 10000000000000000; // 0.01 ethers
+//        ownersPercentFee = 10;
+//        isWinningGuessCalculated = false;
     }
 
     // Modifier that checks if the player has already submitted a guess
