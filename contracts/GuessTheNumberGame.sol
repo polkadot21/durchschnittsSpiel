@@ -27,7 +27,7 @@ contract Factory is CloneFactory {
 }
 
 contract GuessTheNumberGame is Ownable {
-    uint256 public numPlayers=3;
+    uint256 public numPlayers=0;
     address[] public playerAddresses;
     address[] public revealedAddresses;
     address [] public activeAddresses;
