@@ -17,7 +17,7 @@ contract Factory is CloneFactory {
     function createChild() external{
         address payable cloneAddress = payable(address(uint160(createClone(masterContract))));
         GuessTheNumberGame child = GuessTheNumberGame(cloneAddress);
-        child.init();
+        child.init(msg.sender);
         children.push(child);
     }
 
@@ -51,8 +51,8 @@ contract GuessTheNumberGame is Ownable {
     uint256 public startBlock=block.number;
 
 
-    function init() external {
-
+    function init(address _owner) external {
+        transferOwnership(_owner);
     }
 
     // Modifier that checks if the player has already submitted a guess
