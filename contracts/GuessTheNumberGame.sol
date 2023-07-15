@@ -235,7 +235,7 @@ contract GuessTheNumberGame is Ownable {
     }
 
 
-    function calculateWinningGuess() public onlyOwner requireMinNumPlayersAchieved requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
+    function calculateWinningGuess() public requireMinNumPlayersAchieved requireNotAlreadyCalculated requireRevealPeriodExpired requireAtLeastOnePlayerRevealedGuessAndSalt {
 
         uint256 total = 0;
 
@@ -292,7 +292,7 @@ contract GuessTheNumberGame is Ownable {
     }
 
 
-    function selectWinner() public payable onlyOwner requirePotentialWinnerExists {
+    function selectWinner() public payable requirePotentialWinnerExists {
 
         for (uint256 i = 0; i < activeAddresses.length; i++) {
             address activeAddress = activeAddresses[i];
