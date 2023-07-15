@@ -50,6 +50,8 @@ contract GuessTheNumberGame is Ownable {
 
     uint256 public startBlock=block.number;
 
+    mapping(address => bool) public winners;
+    uint256 public winningAmount;
 
     function init(address _owner) external {
         transferOwnership(_owner);
@@ -292,28 +294,38 @@ contract GuessTheNumberGame is Ownable {
     }
 
 
-    function selectWinner() public payable requirePotentialWinnerExists {
+    function calculateWinner() external onlyOwner {
+        require(winningAddresses.length == 0, "Winners have already been calculated");
 
         for (uint256 i = 0; i < activeAddresses.length; i++) {
             address activeAddress = activeAddresses[i];
-            if (guessesOfActivePlayers[activeAddress] == winningGuess)
+            if (guessesOfActivePlayers[activeAddress] == winningGuess) {
                 winningAddresses.push(activeAddress);
+                winners[activeAddress] = true;
+            }
         }
+
         if (winningAddresses.length == 1) {
-            payable(winningAddresses[0]).transfer(address(this).balance);
+            winningAmount = address(this).balance;
         } else {
             uint256 winnerIndex = uint256(blockhash(block.number - 1)) % winningAddresses.length;
             uint256 count = 0;
             for (uint256 j = 0; j < winningAddresses.length; j++) {
-                if (guessesOfActivePlayers[winningAddresses[j]] == winningGuess) {
-                    if (count == winnerIndex) {
-                        payable(winningAddresses[j]).transfer(address(this).balance / activeAddresses.length);
-                        break;
-                    }
-                    count++;
+                if (guessesOfActivePlayers[winningAddresses[j]] == winningGuess && count == winnerIndex) {
+                    winningAmount = address(this).balance / activeAddresses.length;
+                    break;
                 }
+                count++;
             }
         }
+    }
+
+    function claimReward() external {
+        require(winners[msg.sender], "You are not a winner");
+        uint256 reward = winningAmount;
+        winningAmount = 0; // prevent reentrancy
+        winners[msg.sender] = false;
+        payable(msg.sender).transfer(reward);
     }
 
     receive() external payable {}
